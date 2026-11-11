@@ -41,6 +41,10 @@ function getConfig() {
   return { supabaseUrl, supabaseAnonKey };
 }
 
+function getAuthRedirectUrl() {
+  return new URL(import.meta.env.BASE_URL, window.location.origin).toString();
+}
+
 async function readError(response: Response) {
   const body = await response.json().catch(() => null) as AuthResponse | null;
   return body?.msg ?? body?.message ?? body?.error_description ?? "Supabase request failed.";
@@ -69,6 +73,43 @@ async function authRequest(path: string, body: Record<string, unknown>) {
   return await response.json() as AuthResponse;
 }
 
+export async function consumeAuthRedirect() {
+  if (typeof window === "undefined" || !window.location.hash) {
+    return { session: null, type: null, error: null };
+  }
+
+  const params = new URLSearchParams(window.location.hash.slice(1));
+  const type = params.get("type");
+  const error = params.get("error_description") ?? params.get("error");
+  const clearHash = () => window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+
+  if (error) {
+    clearHash();
+    return { session: null, type, error };
+  }
+
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  if (!accessToken || !refreshToken) return { session: null, type, error: null };
+
+  const { supabaseUrl, supabaseAnonKey } = getConfig();
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) throw new Error(await readError(response));
+
+  const user = await response.json() as AuthUser;
+  const session: AuthSession = {
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_at: Number(params.get("expires_at")) || Math.floor(Date.now() / 1000) + Number(params.get("expires_in") ?? 3600),
+    user,
+  };
+  window.localStorage.setItem(sessionKey, JSON.stringify(session));
+  clearHash();
+  return { session, type, error: null };
+}
+
 async function dataRequest(path: string, session?: AuthSession, init: RequestInit = {}) {
   const { supabaseUrl, supabaseAnonKey } = getConfig();
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
@@ -85,8 +126,31 @@ async function dataRequest(path: string, session?: AuthSession, init: RequestIni
 }
 
 export async function signUp(email: string, password: string, username: string) {
-  const response = await authRequest("signup", { email, password, data: { username } });
+  const redirect = encodeURIComponent(getAuthRedirectUrl());
+  const response = await authRequest(`signup?redirect_to=${redirect}`, { email, password, data: { username } });
   return saveSession(response);
+}
+
+export async function requestPasswordReset(email: string) {
+  const redirect = encodeURIComponent(getAuthRedirectUrl());
+  await authRequest(`recover?redirect_to=${redirect}`, { email });
+}
+
+export async function updatePassword(password: string) {
+  const session = await getAuthSession();
+  if (!session) throw new Error("This reset link has expired. Request a new one.");
+
+  const { supabaseUrl, supabaseAnonKey } = getConfig();
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    method: "PUT",
+    headers: {
+      apikey: supabaseAnonKey,
+      Authorization: `Bearer ${session.access_token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ password }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
 }
 
 export async function signIn(email: string, password: string) {

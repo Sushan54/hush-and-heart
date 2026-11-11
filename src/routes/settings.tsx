@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getAuthSession, getProfile, signIn, signOut, signUp, updateUsername, type AuthSession } from "@/lib/supabase";
+import { consumeAuthRedirect, getAuthSession, getProfile, requestPasswordReset, signIn, signOut, signUp, updatePassword, updateUsername, type AuthSession } from "@/lib/supabase";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [
@@ -34,9 +34,11 @@ function Section({ title, description, children }: { title: string; description:
 }
 function Settings() {
   const [session, setSession] = useState<AuthSession | null>(null);
-  const [mode, setMode] = useState<"signup" | "signin">("signup");
+  const [mode, setMode] = useState<"signup" | "signin" | "forgot" | "reset">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [signupUsername, setSignupUsername] = useState("");
   const [username, setUsername] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -46,14 +48,35 @@ function Settings() {
 
   useEffect(() => {
     let active = true;
-    getAuthSession().then(async (current) => {
-      if (!current || !active) return;
-      setSession(current);
-      const profile = await getProfile(current);
-      if (active && profile) setUsername(profile.username);
-    }).catch((loadError: unknown) => {
-      if (active) setError(loadError instanceof Error ? loadError.message : "Couldn't load your account.");
-    });
+    (async () => {
+      try {
+        const redirect = await consumeAuthRedirect();
+        if (!active) return;
+
+        if (redirect.error) {
+          setMode("signin");
+          setError("That email link is invalid or expired. Sign in, or request a fresh link.");
+        }
+        if (redirect.type === "recovery") {
+          if (redirect.session) {
+            setMode("reset");
+            setNotice("Choose a new password for your account.");
+          } else {
+            setMode("signin");
+            setError("That reset link has expired. Request a new one.");
+          }
+        }
+
+        const current = redirect.session ?? await getAuthSession();
+        if (!current || !active) return;
+        setSession(current);
+        const profile = await getProfile(current);
+        if (active && profile) setUsername(profile.username);
+        if (redirect.type === "signup") setNotice("Email confirmed. Your account is ready.");
+      } catch (loadError) {
+        if (active) setError(loadError instanceof Error ? loadError.message : "Couldn't load your account.");
+      }
+    })();
     return () => { active = false; };
   }, []);
 
@@ -91,6 +114,49 @@ function Settings() {
       }
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Couldn't connect your account.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendPasswordReset(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await requestPasswordReset(email);
+      setNotice("If an account exists for that email, a password reset link is on its way.");
+    } catch (resetError) {
+      setError(resetError instanceof Error ? resetError.message : "Couldn't request a password reset.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveNewPassword(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    if (newPassword.length < 8) {
+      setError("Use at least 8 characters for your new password.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("The passwords don't match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await updatePassword(newPassword);
+      await signOut();
+      setSession(null);
+      setNewPassword("");
+      setConfirmPassword("");
+      setMode("signin");
+      setNotice("Password updated. Sign in with your new password.");
+    } catch (resetError) {
+      setError(resetError instanceof Error ? resetError.message : "Couldn't update your password.");
     } finally {
       setBusy(false);
     }
@@ -147,18 +213,24 @@ function Settings() {
             </>
           ) : (
             <>
-              <div role="group" aria-label="Account mode" className="inline-flex rounded-lg border border-border p-1">
-                <button type="button" onClick={() => { setMode("signup"); setError(null); }} aria-pressed={mode === "signup"} className={`rounded-md px-3 py-1.5 text-sm ${mode === "signup" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Create account</button>
-                <button type="button" onClick={() => { setMode("signin"); setError(null); }} aria-pressed={mode === "signin"} className={`rounded-md px-3 py-1.5 text-sm ${mode === "signin" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Sign in</button>
-              </div>
-              <form onSubmit={submitAuth} className="grid gap-3">
+              {(mode === "signup" || mode === "signin") && <div role="group" aria-label="Account mode" className="inline-flex rounded-lg border border-border p-1">
+                <button type="button" onClick={() => { setMode("signup"); setError(null); setNotice(null); }} aria-pressed={mode === "signup"} className={`rounded-md px-3 py-1.5 text-sm ${mode === "signup" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Create account</button>
+                <button type="button" onClick={() => { setMode("signin"); setError(null); setNotice(null); }} aria-pressed={mode === "signin"} className={`rounded-md px-3 py-1.5 text-sm ${mode === "signin" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>Sign in</button>
+              </div>}
+              <form onSubmit={mode === "forgot" ? sendPasswordReset : mode === "reset" ? saveNewPassword : submitAuth} className="grid gap-3">
                 {mode === "signup" && <div className="grid gap-2"><Label htmlFor="signup-username">Username</Label><Input id="signup-username" value={signupUsername} onChange={(event) => setSignupUsername(event.target.value.toLowerCase())} autoComplete="username" minLength={3} maxLength={20} required /></div>}
-                <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></div>
-                <div className="grid gap-2"><Label htmlFor="password">Password</Label><Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={8} required /></div>
+                {(mode === "signup" || mode === "signin" || mode === "forgot") && <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required /></div>}
+                {(mode === "signup" || mode === "signin") && <div className="grid gap-2"><Label htmlFor="password">Password</Label><Input id="password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={8} required /></div>}
+                {mode === "reset" && <>
+                  <div className="grid gap-2"><Label htmlFor="new-password">New password</Label><Input id="new-password" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></div>
+                  <div className="grid gap-2"><Label htmlFor="confirm-password">Confirm new password</Label><Input id="confirm-password" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></div>
+                </>}
                 {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
                 {notice && <p role="status" className="text-sm text-muted-foreground">{notice}</p>}
-                <Button type="submit" disabled={busy}>{busy ? "Working…" : mode === "signup" ? "Create account" : "Sign in"}</Button>
+                <Button type="submit" disabled={busy}>{busy ? "Working…" : mode === "signup" ? "Create account" : mode === "signin" ? "Sign in" : mode === "forgot" ? "Send reset link" : "Save new password"}</Button>
               </form>
+              {mode === "signin" && <button type="button" className="justify-self-start text-sm text-primary hover:underline" onClick={() => { setMode("forgot"); setError(null); setNotice(null); }}>Forgot password?</button>}
+              {(mode === "forgot" || mode === "reset") && <button type="button" className="justify-self-start text-sm text-primary hover:underline" onClick={() => { setMode("signin"); setError(null); setNotice(null); }}>Back to sign in</button>}
             </>
           )}
           {notice && session && <p role="status" className="text-sm text-muted-foreground">{notice}</p>}
