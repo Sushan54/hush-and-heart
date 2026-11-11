@@ -131,6 +131,14 @@ export async function signUp(email: string, password: string, username: string) 
   return saveSession(response);
 }
 
+export async function resendConfirmation(email: string) {
+  await authRequest("resend", {
+    type: "signup",
+    email,
+    options: { emailRedirectTo: getAuthRedirectUrl() },
+  });
+}
+
 export async function requestPasswordReset(email: string) {
   const redirect = encodeURIComponent(getAuthRedirectUrl());
   await authRequest(`recover?redirect_to=${redirect}`, { email });

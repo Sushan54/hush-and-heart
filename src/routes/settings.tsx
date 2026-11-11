@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { consumeAuthRedirect, getAuthSession, getProfile, requestPasswordReset, signIn, signOut, signUp, updatePassword, updateUsername, type AuthSession } from "@/lib/supabase";
+import { consumeAuthRedirect, getAuthSession, getProfile, requestPasswordReset, resendConfirmation, signIn, signOut, signUp, updatePassword, updateUsername, type AuthSession } from "@/lib/supabase";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({ meta: [
@@ -60,6 +60,7 @@ function Settings() {
         if (redirect.type === "recovery") {
           if (redirect.session) {
             setMode("reset");
+            setSession(null);
             setNotice("Choose a new password for your account.");
           } else {
             setMode("signin");
@@ -67,7 +68,7 @@ function Settings() {
           }
         }
 
-        const current = redirect.session ?? await getAuthSession();
+        const current = redirect.type === "recovery" ? null : redirect.session ?? await getAuthSession();
         if (!current || !active) return;
         setSession(current);
         const profile = await getProfile(current);
@@ -129,6 +130,24 @@ function Settings() {
       setNotice("If an account exists for that email, a password reset link is on its way.");
     } catch (resetError) {
       setError(resetError instanceof Error ? resetError.message : "Couldn't request a password reset.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendSignupConfirmation() {
+    setError(null);
+    setNotice(null);
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      await resendConfirmation(email);
+      setNotice("If your account needs confirmation, a fresh email link is on its way.");
+    } catch (resendError) {
+      setError(resendError instanceof Error ? resendError.message : "Couldn't resend the confirmation email.");
     } finally {
       setBusy(false);
     }
@@ -230,6 +249,7 @@ function Settings() {
                 <Button type="submit" disabled={busy}>{busy ? "Working…" : mode === "signup" ? "Create account" : mode === "signin" ? "Sign in" : mode === "forgot" ? "Send reset link" : "Save new password"}</Button>
               </form>
               {mode === "signin" && <button type="button" className="justify-self-start text-sm text-primary hover:underline" onClick={() => { setMode("forgot"); setError(null); setNotice(null); }}>Forgot password?</button>}
+              {mode === "signin" && <button type="button" disabled={busy} className="justify-self-start text-sm text-primary hover:underline disabled:opacity-50" onClick={resendSignupConfirmation}>Resend confirmation email</button>}
               {(mode === "forgot" || mode === "reset") && <button type="button" className="justify-self-start text-sm text-primary hover:underline" onClick={() => { setMode("signin"); setError(null); setNotice(null); }}>Back to sign in</button>}
             </>
           )}
