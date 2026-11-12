@@ -75,4 +75,51 @@ describe("public confession API", () => {
       }),
     );
   });
+
+  it("creates an anonymous poll through the account-scoped endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify("poll-1")));
+    const { createAnonymousPoll } = await loadSupabase(fetchMock);
+
+    await expect(createAnonymousPoll(session, "Which option?", ["One", "Two"])).resolves.toBe(
+      "poll-1",
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.supabase.co/rest/v1/rpc/create_anonymous_poll",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer access-token" }),
+        body: JSON.stringify({ p_question: "Which option?", p_options: ["One", "Two"] }),
+      }),
+    );
+  });
+
+  it("records the selected poll option once per account", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    const { castAnonymousPollVote } = await loadSupabase(fetchMock);
+
+    await castAnonymousPollVote(session, "poll-1", 1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.supabase.co/rest/v1/rpc/cast_anonymous_poll_vote",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer access-token" }),
+        body: JSON.stringify({ p_poll_id: "poll-1", p_option_index: 1 }),
+      }),
+    );
+  });
+
+  it("loads the current account's streak for its local time zone", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response("4"));
+    const { getConfessionShareStreak } = await loadSupabase(fetchMock);
+
+    await expect(getConfessionShareStreak(session, "Asia/Kathmandu")).resolves.toBe(4);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://example.supabase.co/rest/v1/rpc/get_confession_share_streak",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({ Authorization: "Bearer access-token" }),
+        body: JSON.stringify({ p_time_zone: "Asia/Kathmandu" }),
+      }),
+    );
+  });
 });

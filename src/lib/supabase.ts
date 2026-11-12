@@ -1,3 +1,5 @@
+import type { AnonymousPoll } from "@/lib/poll";
+
 const supabaseUrl = import.meta.env["VITE_SUPABASE_URL"]?.replace(/\/$/, "");
 const supabaseAnonKey = import.meta.env["VITE_SUPABASE_ANON_KEY"];
 const sessionKey = "hush-and-heart-session";
@@ -56,7 +58,7 @@ function getAuthRedirectUrl() {
 }
 
 async function readError(response: Response) {
-  const body = await response.json().catch(() => null) as AuthResponse | null;
+  const body = (await response.json().catch(() => null)) as AuthResponse | null;
   return body?.msg ?? body?.message ?? body?.error_description ?? "Supabase request failed.";
 }
 
@@ -65,7 +67,8 @@ function saveSession(response: AuthResponse) {
   const session: AuthSession = {
     access_token: response.access_token,
     refresh_token: response.refresh_token,
-    expires_at: response.expires_at ?? Math.floor(Date.now() / 1000) + (response.expires_in ?? 3600),
+    expires_at:
+      response.expires_at ?? Math.floor(Date.now() / 1000) + (response.expires_in ?? 3600),
     user: response.user,
   };
   window.localStorage.setItem(sessionKey, JSON.stringify(session));
@@ -80,7 +83,7 @@ async function authRequest(path: string, body: Record<string, unknown>) {
     body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error(await readError(response));
-  return await response.json() as AuthResponse;
+  return (await response.json()) as AuthResponse;
 }
 
 export async function consumeAuthRedirect() {
@@ -91,7 +94,12 @@ export async function consumeAuthRedirect() {
   const params = new URLSearchParams(window.location.hash.slice(1));
   const type = params.get("type");
   const error = params.get("error_description") ?? params.get("error");
-  const clearHash = () => window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+  const clearHash = () =>
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${window.location.pathname}${window.location.search}`,
+    );
 
   if (error) {
     clearHash();
@@ -108,11 +116,13 @@ export async function consumeAuthRedirect() {
   });
   if (!response.ok) throw new Error(await readError(response));
 
-  const user = await response.json() as AuthUser;
+  const user = (await response.json()) as AuthUser;
   const session: AuthSession = {
     access_token: accessToken,
     refresh_token: refreshToken,
-    expires_at: Number(params.get("expires_at")) || Math.floor(Date.now() / 1000) + Number(params.get("expires_in") ?? 3600),
+    expires_at:
+      Number(params.get("expires_at")) ||
+      Math.floor(Date.now() / 1000) + Number(params.get("expires_in") ?? 3600),
     user,
   };
   window.localStorage.setItem(sessionKey, JSON.stringify(session));
@@ -137,7 +147,11 @@ async function dataRequest(path: string, session?: AuthSession, init: RequestIni
 
 export async function signUp(email: string, password: string, username: string) {
   const redirect = encodeURIComponent(getAuthRedirectUrl());
-  const response = await authRequest(`signup?redirect_to=${redirect}`, { email, password, data: { username } });
+  const response = await authRequest(`signup?redirect_to=${redirect}`, {
+    email,
+    password,
+    data: { username },
+  });
   return saveSession(response);
 }
 
@@ -191,7 +205,9 @@ export async function getAuthSession() {
   if (session.expires_at > Math.floor(Date.now() / 1000) + 30) return session;
 
   try {
-    const refreshed = await authRequest("token?grant_type=refresh_token", { refresh_token: session.refresh_token });
+    const refreshed = await authRequest("token?grant_type=refresh_token", {
+      refresh_token: session.refresh_token,
+    });
     return saveSession(refreshed);
   } catch {
     window.localStorage.removeItem(sessionKey);
@@ -212,7 +228,10 @@ export async function signOut() {
 }
 
 export async function getProfile(session: AuthSession) {
-  const profiles = await dataRequest(`profiles?select=id,username&id=eq.${encodeURIComponent(session.user.id)}&limit=1`, session) as { id: string; username: string }[];
+  const profiles = (await dataRequest(
+    `profiles?select=id,username&id=eq.${encodeURIComponent(session.user.id)}&limit=1`,
+    session,
+  )) as { id: string; username: string }[];
   return profiles[0] ?? null;
 }
 
@@ -225,17 +244,25 @@ export async function updateUsername(session: AuthSession, username: string) {
 }
 
 export async function getInboxMessages(session: AuthSession) {
-  return await dataRequest("messages?select=id,content,created_at,is_public,read_at&order=created_at.desc", session) as InboxMessage[];
+  return (await dataRequest(
+    "messages?select=id,content,created_at,is_public,read_at&order=created_at.desc",
+    session,
+  )) as InboxMessage[];
 }
 
 export async function getPublicConfessions(session?: AuthSession | null) {
-  return await dataRequest("rpc/get_public_confessions", session ?? undefined, {
+  return (await dataRequest("rpc/get_public_confessions", session ?? undefined, {
     method: "POST",
     body: JSON.stringify({}),
-  }) as PublicConfession[];
+  })) as PublicConfession[];
 }
 
-export async function setPublicConfessionReaction(session: AuthSession, messageId: string, reaction: ReactionType, active: boolean) {
+export async function setPublicConfessionReaction(
+  session: AuthSession,
+  messageId: string,
+  reaction: ReactionType,
+  active: boolean,
+) {
   await dataRequest("rpc/set_public_confession_reaction", session, {
     method: "POST",
     body: JSON.stringify({ p_message_id: messageId, p_reaction: reaction, p_active: active }),
@@ -248,6 +275,42 @@ export async function setMessagePublic(session: AuthSession, id: string, isPubli
     headers: { Prefer: "return=minimal" },
     body: JSON.stringify({ is_public: isPublic }),
   });
+}
+
+export async function getAnonymousPolls(session?: AuthSession | null) {
+  return (await dataRequest("rpc/get_anonymous_polls", session ?? undefined, {
+    method: "POST",
+    body: JSON.stringify({}),
+  })) as AnonymousPoll[];
+}
+
+export async function createAnonymousPoll(
+  session: AuthSession,
+  question: string,
+  options: string[],
+) {
+  return (await dataRequest("rpc/create_anonymous_poll", session, {
+    method: "POST",
+    body: JSON.stringify({ p_question: question, p_options: options }),
+  })) as string;
+}
+
+export async function castAnonymousPollVote(
+  session: AuthSession,
+  pollId: string,
+  optionIndex: number,
+) {
+  await dataRequest("rpc/cast_anonymous_poll_vote", session, {
+    method: "POST",
+    body: JSON.stringify({ p_poll_id: pollId, p_option_index: optionIndex }),
+  });
+}
+
+export async function getConfessionShareStreak(session: AuthSession, timeZone: string) {
+  return (await dataRequest("rpc/get_confession_share_streak", session, {
+    method: "POST",
+    body: JSON.stringify({ p_time_zone: timeZone }),
+  })) as number;
 }
 
 export async function markMessageRead(session: AuthSession, id: string) {

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as InboxRouteImport } from './routes/inbox'
+import { Route as PollsRouteImport } from './routes/polls'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as UUsernameRouteImport } from './routes/u/$username'
 
@@ -36,6 +37,11 @@ const InboxRoute = InboxRouteImport.update({
   path: '/inbox',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PollsRoute = PollsRouteImport.update({
+  id: '/polls',
+  path: '/polls',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/inbox': typeof InboxRoute
+  '/polls': typeof PollsRoute
   '/settings': typeof SettingsRoute
   '/u/$username': typeof UUsernameRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/inbox': typeof InboxRoute
+  '/polls': typeof PollsRoute
   '/settings': typeof SettingsRoute
   '/u/$username': typeof UUsernameRoute
 }
@@ -69,21 +77,36 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRoute
   '/explore': typeof ExploreRoute
   '/inbox': typeof InboxRoute
+  '/polls': typeof PollsRoute
   '/settings': typeof SettingsRoute
   '/u/$username': typeof UUsernameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/dashboard' | '/explore' | '/inbox' | '/settings' | '/u/$username'
+    | '/'
+    | '/dashboard'
+    | '/explore'
+    | '/inbox'
+    | '/polls'
+    | '/settings'
+    | '/u/$username'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/explore' | '/inbox' | '/settings' | '/u/$username'
+  to:
+    | '/'
+    | '/dashboard'
+    | '/explore'
+    | '/inbox'
+    | '/polls'
+    | '/settings'
+    | '/u/$username'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/explore'
     | '/inbox'
+    | '/polls'
     | '/settings'
     | '/u/$username'
   fileRoutesById: FileRoutesById
@@ -93,6 +116,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRoute
   ExploreRoute: typeof ExploreRoute
   InboxRoute: typeof InboxRoute
+  PollsRoute: typeof PollsRoute
   SettingsRoute: typeof SettingsRoute
   UUsernameRoute: typeof UUsernameRoute
 }
@@ -127,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InboxRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/polls': {
+      id: '/polls'
+      path: '/polls'
+      fullPath: '/polls'
+      preLoaderRoute: typeof PollsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -149,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRoute,
   ExploreRoute: ExploreRoute,
   InboxRoute: InboxRoute,
+  PollsRoute: PollsRoute,
   SettingsRoute: SettingsRoute,
   UUsernameRoute: UUsernameRoute,
 }
