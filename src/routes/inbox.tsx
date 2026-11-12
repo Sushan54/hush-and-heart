@@ -8,8 +8,8 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { EmptyState } from "@/components/app/EmptyState";
 import { ConfessionCard } from "@/components/app/ConfessionCard";
 import { Button } from "@/components/ui/button";
-import { getAuthSession, getInboxMessages, markMessageRead, deleteInboxMessage, type AuthSession } from "@/lib/supabase";
-import type { Confession } from "@/lib/demo-data";
+import { getAuthSession, getInboxMessages, markMessageRead, deleteInboxMessage, setMessagePublic, type AuthSession } from "@/lib/supabase";
+import type { Confession } from "@/lib/confession";
 
 export const Route = createFileRoute("/inbox")({
   head: () => ({ meta: [
@@ -41,6 +41,7 @@ function Inbox() {
         category: "Anonymous",
         createdAt: message.created_at,
         unread: !message.read_at,
+        isPublic: message.is_public,
         reactions: { heart: 0, laugh: 0, fire: 0 },
       })));
     }).catch((loadError: unknown) => {
@@ -61,12 +62,16 @@ function Inbox() {
         {session && !loading && items.length === 0 ? (
           <EmptyState icon={InboxIcon} title="No messages yet" description="Your inbox will fill up once your link is live and people start writing to you." />
         ) : session && items.map((c) => (
-          <ConfessionCard key={c.id} c={c} showReactions={false} actions={["read", "delete"]} onAction={async (action, message) => {
+          <ConfessionCard key={c.id} c={c} showReactions={false} actions={["read", "publish", "delete"]} onAction={async (action, message) => {
             try {
               if (!session) return;
               if (action === "read") {
                 await markMessageRead(session, message.id);
                 setItems((current) => current.map((item) => item.id === message.id ? { ...item, unread: false } : item));
+              }
+              if (action === "publish") {
+                await setMessagePublic(session, message.id, !message.isPublic);
+                setItems((current) => current.map((item) => item.id === message.id ? { ...item, isPublic: !item.isPublic } : item));
               }
               if (action === "delete") {
                 await deleteInboxMessage(session, message.id);
@@ -76,7 +81,9 @@ function Inbox() {
               setError(actionError instanceof Error ? actionError.message : "Couldn't update that message.");
               return;
             }
-            toast(action === "read" ? "Message marked as read" : "Message deleted");
+            if (action === "read") toast("Message marked as read");
+            if (action === "delete") toast("Message deleted");
+            if (action === "publish") toast(message.isPublic ? "Removed from Explore" : "Shared on Explore");
           }} />
         ))}
       </div>

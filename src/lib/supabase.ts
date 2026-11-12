@@ -1,5 +1,5 @@
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env["VITE_SUPABASE_URL"]?.replace(/\/$/, "");
+const supabaseAnonKey = import.meta.env["VITE_SUPABASE_ANON_KEY"];
 const sessionKey = "hush-and-heart-session";
 
 export type AuthUser = {
@@ -21,6 +21,16 @@ export type InboxMessage = {
   created_at: string;
   is_public: boolean;
   read_at: string | null;
+};
+
+export type ReactionType = "heart" | "laugh" | "fire";
+
+export type PublicConfession = {
+  id: string;
+  content: string;
+  created_at: string;
+  reactions: Record<ReactionType, number>;
+  my_reactions: Record<ReactionType, boolean>;
 };
 
 type AuthResponse = {
@@ -216,6 +226,28 @@ export async function updateUsername(session: AuthSession, username: string) {
 
 export async function getInboxMessages(session: AuthSession) {
   return await dataRequest("messages?select=id,content,created_at,is_public,read_at&order=created_at.desc", session) as InboxMessage[];
+}
+
+export async function getPublicConfessions(session?: AuthSession | null) {
+  return await dataRequest("rpc/get_public_confessions", session ?? undefined, {
+    method: "POST",
+    body: JSON.stringify({}),
+  }) as PublicConfession[];
+}
+
+export async function setPublicConfessionReaction(session: AuthSession, messageId: string, reaction: ReactionType, active: boolean) {
+  await dataRequest("rpc/set_public_confession_reaction", session, {
+    method: "POST",
+    body: JSON.stringify({ p_message_id: messageId, p_reaction: reaction, p_active: active }),
+  });
+}
+
+export async function setMessagePublic(session: AuthSession, id: string, isPublic: boolean) {
+  await dataRequest(`messages?id=eq.${encodeURIComponent(id)}`, session, {
+    method: "PATCH",
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ is_public: isPublic }),
+  });
 }
 
 export async function markMessageRead(session: AuthSession, id: string) {
