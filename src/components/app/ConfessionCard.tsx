@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { Ban, Check, Flag, Flame, Heart, Laugh, MoreHorizontal, Trash2 } from "lucide-react";
+import { Ban, Check, Flag, MoreHorizontal, Trash2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { type Confession, timeAgo } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
 
 type Action = "read" | "delete" | "report" | "block";
-const reactionIcons = { heart: Heart, laugh: Laugh, fire: Flame } as const;
+const reactionEmojis = { heart: "❤️", laugh: "😄", fire: "🔥" } as const;
 const reactionLabels = { heart: "Love", laugh: "Funny", fire: "Fire" } as const;
 
 export function ConfessionCard({ c, onAction, actions = ["report"], showReactions = true }: { c: Confession; onAction?: (a: Action, c: Confession) => void; actions?: Action[]; showReactions?: boolean }) {
@@ -38,14 +38,13 @@ export function ConfessionCard({ c, onAction, actions = ["report"], showReaction
       </header>
       <p className="mt-4 text-[15px] leading-relaxed">{c.text}</p>
       {showReactions && <footer className="mt-5 flex flex-wrap gap-2">
-        {(Object.keys(reactionIcons) as (keyof typeof reactionIcons)[]).map((k) => {
-          const Icon = reactionIcons[k];
+        {(Object.keys(reactionEmojis) as (keyof typeof reactionEmojis)[]).map((k) => {
           const on = !!mine[k];
           return (
             <button key={k} type="button" aria-pressed={on} aria-label={`${reactionLabels[k]} reaction`}
               onClick={() => setMine((m) => ({ ...m, [k]: !m[k] }))}
               className={cn("flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs tabular-nums transition-all active:scale-95", on ? "border-primary bg-primary/15 text-foreground" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground")}>
-              <Icon className={cn("size-3.5", on && "text-primary")} />{c.reactions[k] + (on ? 1 : 0)}
+              <span aria-hidden="true" className="text-base leading-none">{reactionEmojis[k]}</span>{c.reactions[k] + (on ? 1 : 0)}
             </button>
           );
         })}

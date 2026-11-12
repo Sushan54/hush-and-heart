@@ -1,17 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { MoonStar } from "lucide-react";
+import brandLogo from "@/assets/brand-logo.svg";
+import brandMark from "@/assets/brand-mark.svg";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <Link to="/" className="group inline-flex items-center gap-2.5" aria-label="MID_NIGHT_CONFESSIONS_ home">
-      <span className="grid size-8 place-items-center rounded-lg bg-gradient-brand shadow-glow transition-transform group-hover:rotate-[-8deg]">
-        <MoonStar className="size-4 text-primary-foreground" />
-      </span>
-      {!compact && (
-        <span className="font-mono text-[13px] font-medium tracking-tight text-foreground">
-          MID_NIGHT<span className="text-muted-foreground">_</span>CONFESSIONS<span className="animate-pulse text-primary">_</span>
-        </span>
-      )}
+    <Link to="/" className="inline-flex items-center" aria-label="MIDNIGHT CONFESSIONS home">
+      <img
+        src={compact ? brandMark : brandLogo}
+        alt="Midnight Confessions"
+        className={compact ? "size-10" : "h-11 w-[205px]"}
+      />
     </Link>
   );
 }

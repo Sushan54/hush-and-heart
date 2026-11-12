@@ -3,7 +3,6 @@ import { useState } from "react";
 import { Compass } from "lucide-react";
 import { toast } from "sonner";
 import { ConfessionCard } from "@/components/app/ConfessionCard";
-import { DemoBanner } from "@/components/app/DemoBadge";
 import { demoExplore } from "@/lib/demo-data";
 import { AppShell } from "@/components/app/AppShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -40,12 +39,11 @@ function Explore() {
             className={cn("shrink-0 rounded-full border px-4 py-1.5 text-sm transition-all", cat === c ? "border-primary bg-primary/15 text-foreground" : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground")}>{c}</button>
         ))}
       </div>
-      <div className="mt-6"><DemoBanner>Sample confessions to preview the feed. Reactions only change this preview.</DemoBanner></div>
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {list.length === 0 ? (
           <div className="md:col-span-2"><EmptyState icon={Compass} title={`No ${cat} confessions yet`} description="Try another category." /></div>
         ) : list.map((c) => (
-          <ConfessionCard key={c.id} c={c} actions={["report"]} onAction={() => toast("Reporting isn't available yet", { description: "Demo only — nothing was sent." })} />
+          <ConfessionCard key={c.id} c={c} actions={["report"]} onAction={() => toast("Reporting isn't available yet", { description: "No report was sent." })} />
         ))}
       </div>
     </AppShell>

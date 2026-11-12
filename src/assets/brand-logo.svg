@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="72" viewBox="0 0 320 72" fill="none">
+  <defs>
+    <linearGradient id="moon" x1="5" y1="8" x2="53" y2="65" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D9D5F0"/>
+      <stop offset="1" stop-color="#8074BA"/>
+    </linearGradient>
+    <linearGradient id="veil" x1="30" y1="13" x2="66" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#40366F"/>
+      <stop offset="1" stop-color="#211A3F"/>
+    </linearGradient>
+    <linearGradient id="wordmark" x1="96" y1="14" x2="257" y2="54" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7F5FF"/>
+      <stop offset="1" stop-color="#D8D1F6"/>
+    </linearGradient>
+  </defs>
+  <path d="M43 5C25 8 12 21 12 37s13 29 31 31C32 60 25 49 25 36S32 12 43 5Z" fill="url(#moon)"/>
+  <path d="M37 15 51 10l13 8 4 17-5 14-14 8-12-5-7-13 2-17 5-7Z" fill="url(#veil)" stroke="#AFA6D7" stroke-opacity=".48" stroke-width="1.5"/>
+  <path d="M37 29c4-5 9-7 14-7s10 2 14 7l-14 11-14-11Z" fill="#100E1B"/>
+  <path d="M42 29a9 9 0 0 0 18 0c-2.5-2.4-5.5-3.6-9-3.6s-6.5 1.2-9 3.6Z" fill="#C9C3E3"/>
+  <circle cx="51" cy="29" r="3.3" fill="#292143"/>
+  <path d="m37 30 14 11 14-11" stroke="#BDB4E4" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="m48 48 2 9 8-7" fill="#302653"/>
+  <circle cx="68" cy="13" r="2" fill="#B9AEED"/>
+  <path d="M75 22h1.5M75.75 21.25v1.5" stroke="#B9AEED" stroke-linecap="round"/>
+  <text x="91" y="34" fill="url(#wordmark)" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="600" letter-spacing="3.6">MIDNIGHT</text>
+  <text x="93" y="52" fill="#A99BDF" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="600" letter-spacing="5.3">CONFESSIONS</text>
+</svg>
